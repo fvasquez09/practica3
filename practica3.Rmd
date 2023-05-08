@@ -1,30 +1,147 @@
 ---
 title: "practica3"
 author: "Felipe Vásquez"
-date: "`r Sys.Date()`"
-output: html_document
+output:
+  pdf_document:
+     latex_engine: xelatex
+  html_document: default
+date: "2023-05-03"
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
 
-## R Markdown
+# Práctica 3
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r libraries, echo=FALSE}
+library(tidyr)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(data.table)
+library(mltools)
 ```
 
-## Including Plots
+## Pregunta 1
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r pregunta1, cache = TRUE, echo=TRUE, warning=FALSE}
+# Cargando el epa-http.csv
+http_datos <- read_table("D:\\epa-http.csv", col_names = FALSE)
+# Colocando los nombres adecuados en las columnas
+colnames(http_datos) <- c("Direcciones", "Fecha", "Metodo", "Recurso", "Protocolo", "Codigo_Respuesta", "Bytes")
+###Pregunta 1
+# Tipo de dato
+http_datos$Metodo <- as.factor(http_datos$Metodo)
+http_datos$Protocolo <- as.factor(http_datos$Protocolo)
+http_datos$Codigo_Respuesta <- as.factor(http_datos$Codigo_Respuesta)
+http_datos$Bytes <- as.numeric(http_datos$Bytes)
+# Reemplazando por 0 los valores NA
+http_datos$Bytes <- ifelse(is.na(http_datos$Bytes), 0, http_datos$Bytes)
+nrow(http_datos)
+View(http_datos)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## Pregunta 2
+
+```{r pregunta2, echo=TRUE, warning=FALSE}
+###Pregunta 2
+# Creando nueva tabla segun las repeticiones de las direcciones, para obtener direcciones únicas
+Tabla_Direcciones <- data.frame(Direcciones = http_datos$Direcciones, Codigo_Respuesta =http_datos$Codigo_Respuesta) 
+concurrences <- as.data.frame(table(Tabla_Direcciones))
+# Filtrando valores existentes y ordenando de forma ascendente por la columna Codigo_Respuesta
+# 200, 302, 304, 400, 403, 404, 500, 501
+Datos_Direcciones <- filter(concurrences, Freq > 0) 
+Datos_Direcciones <- Datos_Direcciones %>%
+  arrange(Codigo_Respuesta)
+View(Datos_Direcciones)
+codigo200_data <- Datos_Direcciones %>% filter(Codigo_Respuesta == 200)
+nrow(codigo200_data)
+codigo302_data <- Datos_Direcciones %>% filter(Codigo_Respuesta == 302)
+nrow(codigo302_data)
+codigo304_data <- Datos_Direcciones %>% filter(Codigo_Respuesta == 304)
+nrow(codigo304_data)
+codigo400_data <- Datos_Direcciones %>% filter(Codigo_Respuesta == 400)
+nrow(codigo400_data)
+codigo403_data <- Datos_Direcciones %>% filter(Codigo_Respuesta == 403)
+nrow(codigo403_data)
+codigo404_data <- Datos_Direcciones %>% filter(Codigo_Respuesta == 404)
+nrow(codigo404_data)
+codigo500_data <- Datos_Direcciones %>% filter(Codigo_Respuesta == 500)
+nrow(codigo500_data)
+codigo501_data <- Datos_Direcciones %>% filter(Codigo_Respuesta == 501)
+nrow(codigo501_data)
+```
+
+## Pregunta 3
+
+```{r pregunta3, echo=TRUE, warning=FALSE}
+####### Pregunta 3
+# Identificar la frecuencia de la columna método
+freq_http <- table(http_datos$Metodo)
+metodo_data <- data.frame(http = names(freq_http), freq_http = as.vector(freq_http))
+metodo_data
+# Encontrando con qué frecuencia aparece la columna "http", luego de filtrar los recursos que son imágenes
+different_image_data <- http_datos %>%
+  filter(!grepl("(?i)\\.(gif|jpg|jpeg|png|bmp)$", Recurso))
+freq2_http <- table(different_image_data$Metodo)
+metodo2_data <- data.frame(http = names(freq2_http), freq2_http = as.vector(freq2_http))
+metodo2_data
+```
+## Pregunta 4
+ Estas clases de gráficos posibilitan la representación visual de la frecuencia de las diferentes categorías que se encuentran en una variable, lo cual puede ser útil para detectar modelos y direcciones
+
+```{r pregunta4, cache = TRUE, echo=TRUE, warning=FALSE}
+### Pregunta 4
+Tabla_Frecuencia <-table(http_datos$Codigo_Respuesta)
+Tabla_CodigoRespuesta <- data.frame(Codigo_Respuesta = names(Tabla_Frecuencia), 
+                          Frecuencia = as.vector(Tabla_Frecuencia))
+ggplot(Tabla_CodigoRespuesta, aes(x = Codigo_Respuesta, y = Frecuencia,  fill = Codigo_Respuesta)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = c("#e6b0aa", "#17202a", "#f1c40f","#4a235a", "#9ed99e","#9b0800","#873600","#FF0099")) +
+  labs(title = "Gráfico de Respuesta de Código",
+       x = "Código de respuesta",
+       y = "Frecuencia")
+ggplot(Tabla_CodigoRespuesta, aes(x = "", y = Frecuencia, fill = Codigo_Respuesta)) +
+  geom_bar(stat = "identity", color = "black") +
+  coord_polar("y", start = 0) +
+  labs(title = "Gráfico 3 de Respuesta de Código",
+       fill = "Código de respuesta") +
+  theme_void()
+```
+
+## Pregunta 5
+
+```{r pregunta5, echo=TRUE, warning=FALSE}
+########Pregunta 5
+http_datos_filtrados <- http_datos[, c("Metodo", "Codigo_Respuesta", "Protocolo")]
+http_one_hot <- one_hot(as.data.table(http_datos_filtrados), sparsifyNAs = TRUE)
+http_datos$Recurso_size <- nchar(http_datos$Recurso)
+# Agrupamiento de 4 y 3
+resultado2 <- kmeans(http_one_hot, centers = 4)
+resultado3 <- kmeans(http_one_hot, centers = 3)
+```
+
+Pregunta 6
+
+La interpretación de cada gráfica es en base a la cantidad de puntos según el tipo de cluster. Por ejemplo:
+* En la gráfica 2, se visualiza que existe más presencia de cluster 3 
+* En el gráfico 3, se aprecia que hay más cantidad de cluster 2
+
+```{r pregunta6, echo=TRUE,cache = TRUE, warning=FALSE}
+# Graficando la columna de bytes y el tamaño del recurso según el tipo de agrupamiento.
+set.seed(123) 
+## Gráfica con cluster 4
+colores2 <- c("#66FF00", "#CCFF00", "#990000", "#FF0099")
+grafico1 <- plot(x = http_datos$Bytes, y = http_datos$Recurso_size, col = colores2[resultado2$cluster], main="Gráfico con 4 clusters")
+options(scipen = 999)
+# Creando leyenda
+legend("topright", legend = levels(factor(resultado2$cluster)), col = colores2, pch = 16)
+### Gráfica con Cluster 3
+#colores3 <- rainbow(n = length(unique(resultado3$cluster)))
+colores3 <- c("#873600","#FF0099", "#330000")
+grafico2 <- plot(x = http_datos$Bytes, y = http_datos$Recurso_size, col = colores3[resultado3$cluster], main="Gráfico con 3 clusters")
+options(scipen = 999)
+# Creando leyenda
+legend("topright", legend = levels(factor(resultado3$cluster)), col = colores3, pch = 16)
+```
