@@ -1,6 +1,6 @@
 ---
 title: "practica3"
-author: "Felipe Vásquez"
+author: "Felipe Vásquez - Marco Ramos"
 output:
   pdf_document:
      latex_engine: xelatex
